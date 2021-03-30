@@ -5,6 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/nelhage/taktician/symmetry"
+	"github.com/nelhage/taktician/tak"
 	"log"
 	"strconv"
 	"strings"
@@ -49,11 +51,6 @@ func (c *Command) Execute(ctx context.Context, flag *flag.FlagSet, _ ...interfac
 		log.Fatal("open: ", err)
 	}
 
-	_, err = sql.Exec(createPTNTable)
-	if err != nil {
-		log.Fatal("create schema: ", err)
-	}
-
 	tx := sql.MustBegin()
 	defer tx.Commit()
 	cur, err := tx.Queryx(selectTODO)
@@ -63,7 +60,7 @@ func (c *Command) Execute(ctx context.Context, flag *flag.FlagSet, _ ...interfac
 
 	type result struct {
 		game gameRow
-		ptn  string
+		ptn string
 	}
 
 	todo := make(chan gameRow)
@@ -89,7 +86,7 @@ func (c *Command) Execute(ctx context.Context, flag *flag.FlagSet, _ ...interfac
 				for game := range todo {
 					ptn, err := importOne(&game)
 					if err != nil {
-						log.Printf("could not import: id=%d err=%v", game.Id, err)
+						// log.Printf("could not import: id=%d err=%v", game.Id, err)
 						continue
 					}
 					results <- result{game, ptn}
@@ -107,11 +104,7 @@ func (c *Command) Execute(ctx context.Context, flag *flag.FlagSet, _ ...interfac
 
 	i := 0
 	for result := range results {
-		_, err = tx.NamedExec(
-			insertPTN, &ptnRow{Id: result.game.Id, PTN: result.ptn})
-		if err != nil {
-			log.Fatalf("insert id=%d err=%v ", result.game.Id, err)
-		}
+		println(result.ptn)
 		i = i + 1
 		if i%ReportInterval == 0 {
 			log.Printf("%d...", i)
@@ -165,14 +158,27 @@ func importOne(g *gameRow) (string, error) {
 	out.Tags = formatTags(g)
 
 	moves := strings.Split(g.Notation, ",")
+
+	var canonMoves []tak.Move = make([]tak.Move, 0)
+
 	for i, mv := range moves {
-		if i%2 == 0 {
-			out.Ops = append(out.Ops, &ptn.MoveNumber{Number: i/2 + 1})
-		}
 		mv, err := playtak.ParseServer(strings.Trim(mv, " "))
+		canonMoves = append(canonMoves, mv)
 		if err != nil {
 			return "", fmt.Errorf("move %d: %v", i, err)
 		}
+	}
+
+	canonMoves, err := symmetry.Canonical(g.Size, canonMoves)
+	if err != nil {
+		return "", err
+	}
+
+	for i, mv := range canonMoves {
+		if i%2 == 0 {
+			out.Ops = append(out.Ops, &ptn.MoveNumber{Number: i/2 + 1})
+		}
+
 		out.Ops = append(out.Ops, &ptn.Move{Move: mv})
 	}
 

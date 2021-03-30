@@ -53,12 +53,5 @@ type ptnRow struct {
 
 const selectTODO = `
 SELECT g.*
-FROM games g LEFT OUTER JOIN ptns p
-  ON (g.id = p.id)
-WHERE p.id is NULL
-`
-
-const insertPTN = `
-INSERT INTO ptns (id, ptn)
-VALUES (:id, :ptn)
+FROM games g
 `
