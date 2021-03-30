@@ -28,10 +28,20 @@ type gameRow struct {
 
 	PlayerWhite string `db:"player_white"`
 	PlayerBlack string `db:"player_black"`
+	RatingWhite string `db:"rating_white"`
+	RatingBlack string `db:"rating_black"`
+	RatingChangeWhite int `db:"rating_change_white"`
+	RatingChangeBlack int `db:"rating_change_black"`
+
+	IsRated int `db:"unrated"`
+	Tournament string `db:"tournament"`
 
 	Notation string `db:"notation"`
 	Result   string `db:"result"`
 
+	Komi int `db:"komi"`
+	NumPieces int `db:"pieces"`
+	NumCapstones int `db:"capstones"`
 	TimerTime int `db:"timertime"`
 	TimerInc  int `db:"timerinc"`
 }
